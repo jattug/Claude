@@ -173,6 +173,15 @@ export interface PlanChange {
 
 export interface Plan {
   id: 'plan'
+  /**
+   * How much the app asks of you day to day.
+   *
+   * 'simple' is the default and the one to live in: three questions at the
+   * gate, one at the close. It captures everything the compliance rate and the
+   * quadrant model need. 'full' adds the complete Appendix B/C/D apparatus —
+   * worth switching on for a weekend deep-dive, punishing as a daily habit.
+   */
+  mode: 'simple' | 'full'
   traderName: string
   startingEquity: number
   currentEquity: number

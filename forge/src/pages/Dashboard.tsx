@@ -26,6 +26,7 @@ export default function Dashboard() {
   const log = logs.find((l) => l.date === today())
 
   if (!plan) return <p className="muted">Loading…</p>
+  const simple = plan.mode !== 'full'
 
   const openTrades = trades.filter((t) => t.status === 'OPEN')
   const plannedTrades = trades.filter((t) => t.status === 'PLANNED')
@@ -125,16 +126,16 @@ export default function Dashboard() {
             {stats.trades > stats.audited
               ? ` ${stats.trades - stats.audited} still need auditing.` : ''}
           </div>
-          <hr className="divider" />
-          <div className="row-between">
+          <hr className="divider" hidden={simple} />
+          <div className="row-between" hidden={simple}>
             <span className="secondary" style={{ fontSize: 12.5 }}>Compliant streak</span>
             <b className="num">{behaviour.currentCompliantStreak}</b>
           </div>
-          <div className="row-between" style={{ marginTop: 5 }}>
+          <div className="row-between" style={{ marginTop: 5 }} hidden={simple}>
             <span className="secondary" style={{ fontSize: 12.5 }}>Best ever</span>
             <b className="num">{behaviour.bestCompliantStreak}</b>
           </div>
-          <div className="row-between" style={{ marginTop: 5 }}>
+          <div className="row-between" style={{ marginTop: 5 }} hidden={simple}>
             <span className="secondary" style={{ fontSize: 12.5 }}>
               Missed twice
               <span className="muted"> · back-to-back breaks</span>
@@ -146,7 +147,7 @@ export default function Dashboard() {
         </Card>
 
         <div className="stack">
-          <div className="grid grid-3">
+          <div className={simple ? 'grid grid-3' : 'grid grid-3'}>
             <Stat label="Expectancy" value={rMult(stats.expectancyR)} size="sm"
               tone={stats.expectancyR != null && stats.expectancyR > 0 ? 'good' : 'bad'}
               note={`over ${stats.trades} closed trades`} />
@@ -156,17 +157,21 @@ export default function Dashboard() {
             <Stat label="Net P&L" value={signedMoney(stats.totalPnl, plan.currency)} size="sm"
               tone={stats.totalPnl > 0 ? 'good' : 'bad'}
               note={`equity ${money(plan.currentEquity, plan.currency)}`} />
-            <Stat label="Avg win / avg loss" size="sm"
-              value={`${rMult(stats.avgWinR, 1)} / ${rMult(stats.avgLossR, 1)}`}
-              note={stats.profitFactor ? `profit factor ${stats.profitFactor.toFixed(2)}` : undefined} />
-            <Stat label="Max drawdown" value={pct(dd, 1)} size="sm"
-              tone={dd > 15 ? 'bad' : dd > 8 ? 'warn' : 'good'}
-              note={`worst losing streak: ${stats.maxConsecutiveLosses}`} />
-            <Stat label="Stop honour rate" value={pct(behaviour.stopHonourRate, 0)} size="sm"
-              tone={toneFor(behaviour.stopHonourRate, 95, 85) === 'muted' ? undefined : toneFor(behaviour.stopHonourRate, 95, 85)}
-              note={behaviour.stopsMovedCount > 0
-                ? `${behaviour.stopsMovedCount} trade${behaviour.stopsMovedCount > 1 ? 's' : ''} with a stop moved off-plan`
-                : 'no off-plan stop moves'} />
+            {simple ? null : (
+              <>
+                <Stat label="Avg win / avg loss" size="sm"
+                  value={`${rMult(stats.avgWinR, 1)} / ${rMult(stats.avgLossR, 1)}`}
+                  note={stats.profitFactor ? `profit factor ${stats.profitFactor.toFixed(2)}` : undefined} />
+                <Stat label="Max drawdown" value={pct(dd, 1)} size="sm"
+                  tone={dd > 15 ? 'bad' : dd > 8 ? 'warn' : 'good'}
+                  note={`worst losing streak: ${stats.maxConsecutiveLosses}`} />
+                <Stat label="Stop honour rate" value={pct(behaviour.stopHonourRate, 0)} size="sm"
+                  tone={toneFor(behaviour.stopHonourRate, 95, 85) === 'muted' ? undefined : toneFor(behaviour.stopHonourRate, 95, 85)}
+                  note={behaviour.stopsMovedCount > 0
+                    ? `${behaviour.stopsMovedCount} trade${behaviour.stopsMovedCount > 1 ? 's' : ''} with a stop moved off-plan`
+                    : 'no off-plan stop moves'} />
+              </>
+            )}
           </div>
 
           {cost.violatingCount > 0 ? (
@@ -229,7 +234,7 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        <div className="stack">
+        <div className="stack" hidden={simple}>
           <Card>
             <div className="card-head"><h2>Patience</h2></div>
             <div className="card-sub">Ch.5 — a day you scanned, found nothing and did nothing is a success, not a wasted day.</div>

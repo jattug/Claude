@@ -52,6 +52,7 @@ export default function TradeDetail() {
     void saveTrade(next)
   }
 
+  const simple = plan.mode !== 'full'
   const compliant = isCompliant(trade)
   const quad = quadrantOf(trade)
   const meta = quad ? QUADRANT_META[quad] : null
@@ -90,9 +91,13 @@ export default function TradeDetail() {
           {meta.blurb}
         </Callout>
       ) : trade.status === 'CLOSED' && !auditDone ? (
-        <Callout tone="warn" title="This trade is closed but not audited">
-          Until the five questions are answered it does not count toward your compliance rate.{' '}
-          <button className="btn btn-sm" onClick={() => setTab('audit')}>Audit it now</button>
+        <Callout tone="warn" title="This trade is closed but not reviewed">
+          {simple
+            ? 'One question and it joins your compliance rate.'
+            : 'Until the seven questions are answered it does not count toward your compliance rate.'}{' '}
+          <button className="btn btn-sm" onClick={() => setTab('audit')}>
+            {simple ? 'Answer it' : 'Audit it now'}
+          </button>
         </Callout>
       ) : null}
 
@@ -122,8 +127,13 @@ export default function TradeDetail() {
           active={tab} onChange={setTab}
           tabs={[
             { id: 'execution', label: 'Execution' },
-            { id: 'audit', label: auditDone ? 'Process audit ✓' : 'Process audit' },
-            { id: 'psychology', label: 'Psychology' },
+            {
+              id: 'audit',
+              label: simple
+                ? (auditDone ? 'Review ✓' : 'Review')
+                : (auditDone ? 'Process audit ✓' : 'Process audit'),
+            },
+            ...(simple ? [] : [{ id: 'psychology' as const, label: 'Psychology' }]),
             { id: 'charts', label: `Charts${trade.charts.length ? ` (${trade.charts.length})` : ''}` },
           ]}
         />
@@ -131,7 +141,9 @@ export default function TradeDetail() {
 
       {tab === 'execution' ? <ExecutionTab trade={trade} plan={plan} update={update} /> : null}
       {tab === 'audit' ? (
-        <AuditTab trade={trade} update={update} suggested={suggested} compliant={compliant} />
+        plan.mode === 'simple'
+          ? <SimpleAudit trade={trade} update={update} suggested={suggested} compliant={compliant} />
+          : <AuditTab trade={trade} update={update} suggested={suggested} compliant={compliant} />
       ) : null}
       {tab === 'psychology' ? <PsychologyTab trade={trade} update={update} /> : null}
       {tab === 'charts' ? <ChartsTab trade={trade} update={update} /> : null}
@@ -466,7 +478,155 @@ function ExitModalInline({ trade, update, onClose }: {
   )
 }
 
-// -------------------------------------------------------------------- audit
+
+/**
+ * The audit, as one question.
+ *
+ * Compliance only needs to know whether the plan was followed. The seven-part
+ * breakdown is for diagnosing a bad trade, not for taxing a good one — so a
+ * clean trade closes in a single tap, and the detail only appears when the
+ * answer is no.
+ *
+ * Answering "no" deliberately does NOT write the audit until a deviation is
+ * named: an unnamed rule break would otherwise read as compliant and quietly
+ * inflate the number the whole app is built on.
+ */
+function SimpleAudit({ trade, update, suggested, compliant }: {
+  trade: Trade
+  update: (p: Partial<Trade>) => void
+  suggested: Deviation[]
+  compliant: boolean | null
+}) {
+  const [brokePlan, setBrokePlan] = useState<boolean | null>(
+    compliant === null ? null : !compliant,
+  )
+
+  const allTrue: ProcessAudit = {
+    setupMetCriteria: true, entryPerPlan: true, stopPlacedImmediately: true,
+    sizePerPlan: true, exitPerRules: true, withinRiskLimits: true,
+    checklistUsedBeforeEntry: true,
+  }
+  const unanswered: ProcessAudit = {
+    setupMetCriteria: null, entryPerPlan: null, stopPlacedImmediately: null,
+    sizePerPlan: null, exitPerRules: null, withinRiskLimits: null,
+    checklistUsedBeforeEntry: null,
+  }
+
+  function answer(broke: boolean) {
+    setBrokePlan(broke)
+    if (!broke) {
+      update({ audit: allTrue, deviations: [] })
+    } else {
+      // Hold the audit open until at least one deviation is named.
+      update({ audit: trade.deviations.length ? allTrue : unanswered })
+    }
+  }
+
+  function toggleDeviation(d: Deviation) {
+    const next = trade.deviations.includes(d)
+      ? trade.deviations.filter((x) => x !== d)
+      : [...trade.deviations, d]
+    update({ deviations: next, audit: next.length ? allTrue : unanswered })
+  }
+
+  return (
+    <div className="grid grid-2" style={{ alignItems: 'start' }}>
+      <Card>
+        <div className="card-head"><h2>One question</h2></div>
+        <div className="card-sub">
+          Not whether it made money — whether you did what you said you would.
+        </div>
+
+        <div className="btn-row" style={{ marginTop: 6 }}>
+          <button
+            className={`btn ${brokePlan === false ? 'btn-primary' : ''}`}
+            style={{ flex: 1, minHeight: 52, fontSize: 15 }}
+            aria-pressed={brokePlan === false}
+            onClick={() => answer(false)}
+          >
+            I followed my plan
+          </button>
+          <button
+            className={`btn ${brokePlan === true ? 'btn-danger' : ''}`}
+            style={{ flex: 1, minHeight: 52, fontSize: 15 }}
+            aria-pressed={brokePlan === true}
+            onClick={() => answer(true)}
+          >
+            I broke it
+          </button>
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          {compliant === true ? (
+            <Callout tone="good" title="Counted as a process success">
+              Whatever the P&amp;L says, this is the trade you are trying to repeat.
+            </Callout>
+          ) : compliant === false ? (
+            <Callout tone="bad" title="Counted as a rule break">
+              Now it can be counted, and the analytics can tell you what this habit costs.
+            </Callout>
+          ) : brokePlan === true ? (
+            <Callout tone="warn" title="Name what went wrong">
+              Pick at least one below. Until you do, this trade is not counted either way —
+              an unnamed rule break would quietly flatter your compliance rate.
+            </Callout>
+          ) : (
+            <Callout tone="info">Answer and this trade joins your compliance rate.</Callout>
+          )}
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <Field label="One line for your future self" >
+            <TextArea value={trade.lesson ?? ''} rows={2}
+              placeholder="Wait for the close below the 10DSMA. The intraday poke is not the signal."
+              onChange={(e) => update({ lesson: e.target.value })} />
+          </Field>
+        </div>
+      </Card>
+
+      {brokePlan === true ? (
+        <Card>
+          <div className="card-head"><h2>What happened?</h2></div>
+          {suggested.length ? (
+            <Callout tone="warn" title="The numbers suggest these">
+              <div className="chip-row" style={{ marginTop: 6 }}>
+                {suggested.map((d) => (
+                  <button key={d} className="chip" onClick={() => toggleDeviation(d)}>+ {d}</button>
+                ))}
+              </div>
+            </Callout>
+          ) : null}
+          <div className="chip-row" style={{ marginTop: 12 }}>
+            {DEVIATIONS.map((d) => (
+              <ChipToggle key={d} on={trade.deviations.includes(d)} flag
+                onClick={() => toggleDeviation(d)}>
+                {d}
+              </ChipToggle>
+            ))}
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <Field label="What set it off?"
+              hint="The cue, not the action. A stop-out? A missed move? A slow hour?">
+              <TextInput value={trade.deviationNote ?? ''}
+                onChange={(e) => update({ deviationNote: e.target.value })} />
+            </Field>
+          </div>
+        </Card>
+      ) : (
+        <Card>
+          <div className="card-head"><h3>Want the full breakdown?</h3></div>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
+            The seven-part audit — entry, stop, size, exit, limits, checklist — lives in full mode,
+            switchable from the Rulebook. It is worth a weekend pass over a bad week; it is too
+            much for every trade.
+          </p>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+// -------------------------------------------------------------- full audit
 
 function AuditTab({ trade, update, suggested, compliant }: {
   trade: Trade

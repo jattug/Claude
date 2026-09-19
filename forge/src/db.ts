@@ -44,6 +44,7 @@ export const nowIso = (): string => new Date().toISOString()
 export function defaultPlan(): Plan {
   return {
     id: 'plan',
+    mode: 'simple',
     traderName: '',
     startingEquity: 50_000,
     currentEquity: 50_000,
@@ -139,7 +140,8 @@ export function newLog(date: string): DailyLog {
 
 export async function getPlan(): Promise<Plan> {
   const existing = await db.plan.get('plan')
-  if (existing) return existing
+  // Journals created before the mode flag existed default to simple.
+  if (existing) return existing.mode ? existing : { ...existing, mode: 'simple' }
   const p = defaultPlan()
   await db.plan.put(p)
   return p

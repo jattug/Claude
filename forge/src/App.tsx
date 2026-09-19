@@ -5,6 +5,8 @@ import { db, getPlan, today } from './db'
 import { evaluateBreakers } from './lib/rules'
 import Dashboard from './pages/Dashboard'
 import PreTradeGate from './pages/PreTradeGate'
+import SimpleGate from './pages/SimpleGate'
+import SimpleToday from './pages/SimpleToday'
 import OpenPositions from './pages/OpenPositions'
 import Trades from './pages/Trades'
 import TradeDetail from './pages/TradeDetail'
@@ -16,7 +18,27 @@ import Principles from './pages/Principles'
 
 type Theme = 'light' | 'dark' | 'system'
 
-const NAV = [
+const SIMPLE_NAV = [
+  {
+    group: '',
+    items: [
+      { to: '/daily', label: 'Today', icon: '☀' },
+      { to: '/gate', label: 'Check a trade', icon: '⊘' },
+      { to: '/positions', label: 'Positions', icon: '▤' },
+      { to: '/trades', label: 'Journal', icon: '≡' },
+      { to: '/dashboard', label: 'How am I doing', icon: '◎' },
+    ],
+  },
+  {
+    group: 'Occasionally',
+    items: [
+      { to: '/weekly', label: 'Weekly review', icon: '◷' },
+      { to: '/rulebook', label: 'Rulebook', icon: '§' },
+    ],
+  },
+]
+
+const FULL_NAV = [
   {
     group: 'Today',
     items: [
@@ -62,6 +84,9 @@ export default function App() {
   const trades = useLiveQuery(() => db.trades.toArray(), []) ?? []
   const log = useLiveQuery(() => db.logs.get(today()), [location.pathname])
 
+  const simple = plan?.mode !== 'full'
+  const NAV = simple ? SIMPLE_NAV : FULL_NAV
+
   const openTrades = trades.filter((t) => t.status === 'OPEN')
   const plannedTrades = trades.filter((t) => t.status === 'PLANNED')
   const todaysTrades = trades.filter((t) => t.entryDate === today())
@@ -83,10 +108,11 @@ export default function App() {
         <div className="brand">
           <div className="brand-name">FORGE</div>
           <div className="brand-sub">Process first.<br />P&amp;L is the byproduct.</div>
+          {simple ? null : <div className="brand-sub" style={{ marginTop: 6 }}>Full mode</div>}
         </div>
         {NAV.map((g) => (
           <div key={g.group}>
-            <div className="nav-group-label">{g.group}</div>
+            {g.group ? <div className="nav-group-label">{g.group}</div> : null}
             {g.items.map((i) => {
               const b = badges[i.to]
               return (
@@ -141,10 +167,10 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/gate" element={<PreTradeGate />} />
+            <Route path="/gate" element={simple ? <SimpleGate /> : <PreTradeGate />} />
             <Route path="/gate/:id" element={<PreTradeGate />} />
             <Route path="/positions" element={<OpenPositions />} />
-            <Route path="/daily" element={<DailyLogPage />} />
+            <Route path="/daily" element={simple ? <SimpleToday /> : <DailyLogPage />} />
             <Route path="/trades" element={<Trades />} />
             <Route path="/trades/:id" element={<TradeDetail />} />
             <Route path="/analytics" element={<Analytics />} />

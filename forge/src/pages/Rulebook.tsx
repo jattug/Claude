@@ -44,6 +44,37 @@ export default function Rulebook() {
         </p>
       </div>
 
+      <Card style={{ marginBottom: 14 }}>
+        <div className="card-head"><h2>How much should the app ask of you?</h2></div>
+        <div className="card-sub">
+          Both modes produce the same compliance rate and the same four outcomes. The difference
+          is how many questions stand between you and a logged trade.
+        </div>
+        <div className="grid grid-2">
+          {([
+            ['simple', 'Simple', 'Three questions at the gate, one at the close. About a minute a day. Start here and stay here unless you find yourself wanting more.'],
+            ['full', 'Full', 'The complete apparatus: the sixteen-point checklist, the three routine checklists, the seven-part audit, the emotional arc. Thorough, and heavy as a daily habit.'],
+          ] as const).map(([id, label, blurb]) => (
+            <button
+              key={id}
+              className="stat"
+              style={{
+                textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+                border: plan.mode === id ? '2px solid var(--series-1)' : '1px solid var(--border)',
+              }}
+              aria-pressed={plan.mode === id}
+              onClick={() => update({ mode: id })}
+            >
+              <div className="row" style={{ gap: 8 }}>
+                <b style={{ fontSize: 15 }}>{label}</b>
+                {plan.mode === id ? <Badge tone="accent">✓ In use</Badge> : null}
+              </div>
+              <div className="stat-note">{blurb}</div>
+            </button>
+          ))}
+        </div>
+      </Card>
+
       <div className="grid grid-3">
         <Field label="Trader">
           <TextInput value={plan.traderName} placeholder="Your name"
