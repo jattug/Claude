@@ -172,7 +172,8 @@ a { color: var(--series-1); }
 .topbar {
   display: flex; align-items: center; gap: 14px;
   padding: 14px 24px; border-bottom: 1px solid var(--border);
-  background: var(--surface-1); position: sticky; top: 0; z-index: 20;
+  background: var(--surface-1); position: sticky; z-index: 20;
+  top: env(safe-area-inset-top, 0px);
   flex-wrap: wrap;
 }
 .topbar-spacer { flex: 1; }
@@ -466,7 +467,7 @@ tr:last-child td { border-bottom: none; }
   .mobile-nav {
     display: flex; gap: 6px; overflow-x: auto; padding: 10px 16px;
     border-bottom: 1px solid var(--border); background: var(--surface-1);
-    position: sticky; top: 0; z-index: 20;
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
   }
   .mobile-nav .nav-item { width: auto; white-space: nowrap; }
 }
